@@ -25,12 +25,18 @@ class SensorFactory(GstRtspServer.RTSPMediaFactory):
         #                      ! rtph264pay config-interval=1 name=pay0 pt=96 \
         #                       videotestsrc pattern=21 kt=8 ! selector.sink_0 \
         #                       videotestsrc pattern=0 ! selector.sink_1 '
-        self.launch_string = 'input-selector name="selector" sync-mode=1 sync-streams=false ! rtph265depay ! queue ! nvv4l2decoder ! \
-    nvvidconv name=converter ! video/x-raw(memory:NVMM), width=(int)4320, height=(int)1920, format=(string)I420 ! \
-    nvv4l2h265enc control-rate=0 ratecontrol-enable=true name=encoder ! video/x-h265, stream-format=(string)byte-stream ! h265parse ! \
-    rtph265pay config-interval=1 name=pay0 pt=96 \
-    rtspsrc location="rtsp://admin:L48yr1n771@192.168.128.190:554/Streaming/Channels/101" name=source0 latency=100 ! queue2 ! selector.sink_0 \
-    rtspsrc location="rtsp://admin:L48yr1n771@192.168.128.190:554/Streaming/Channels/101" name=source1 latency=100 ! queue2 ! selector.sink_1'
+    #     self.launch_string = 'input-selector name="selector" sync-mode=1 sync-streams=false ! rtph265depay ! queue ! nvv4l2decoder ! \
+    # nvvidconv name=converter ! capsfilter name="size" caps="video/x-raw(memory:NVMM), width=(int)4320, height=(int)1920, format=(string)I420" ! \
+    # nvv4l2h265enc control-rate=1 ratecontrol-enable=true name="encoder" ! video/x-h265, stream-format=(string)byte-stream ! h265parse ! \
+    # rtph265pay config-interval=1 name=pay0 pt=96 \
+    # rtspsrc location="rtsp://admin:L48yr1n771@192.168.128.190:554/Streaming/Channels/101" name=source0 latency=100 ! queue2 ! selector.sink_0 \
+    # rtspsrc location="rtsp://admin:L48yr1n771@192.168.128.190:554/Streaming/Channels/101" name=source1 latency=100 ! queue2 ! selector.sink_1'
+        self.launch_string = f'input-selector name="selector" ! capsfilter caps="video/x-raw, height=600, width=800, framerate=30/1" ! \
+                                          nvvidconv name=converter ! capsfilter name="size" caps="video/x-raw(memory:NVMM), width=(int)800, height=(int)800, format=(string)I420" !\
+                                          nvv4l2h265enc name="encoder" control-rate=1 ratecontrol-enable=true bitrate=200000 ! h265parse ! \
+                                          avdec_h265 ! videoconvert ! xvimagesink name=output \
+                                          videotestsrc pattern=21 kt=8 is-live=true ! selector.sink_0 \
+                                          videotestsrc pattern=0 is-live=true ! selector.sink_1'
         self.set_shared(True)
         self.own_media = None
 
@@ -76,14 +82,7 @@ class SensorFactory(GstRtspServer.RTSPMediaFactory):
             elem = self.media.get_element()
             print(elem)
             print(self.encoder)
-            elem.set_state(Gst.State.PAUSED)
-            print(elem.get_state(Gst.CLOCK_TIME_NONE))
-
             self.encoder.set_property('bitrate', bitrate)
-
-            elem.set_state(Gst.State.PLAYING)
-            print(elem.get_state(Gst.CLOCK_TIME_NONE))
-            print(self.encoder.get_property('bitrate'))
             return True
 
 # Rtsp server implementation where we attach the factory sensor with the stream uri
