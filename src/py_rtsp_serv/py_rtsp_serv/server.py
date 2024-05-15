@@ -19,24 +19,31 @@ class SensorFactory(GstRtspServer.RTSPMediaFactory):
         super(SensorFactory, self).__init__(**properties)
         self.selector = None
         self.encoder = None
-        # self.launch_string = 'input-selector name="selector" sync-mode=1 ! timeoverlay ! \
-        #                       videoconvert ! video/x-raw,format=I420  \
-        #                      ! x264enc name=encoder speed-preset=ultrafast tune=zerolatency  \
-        #                      ! rtph264pay config-interval=1 name=pay0 pt=96 \
-        #                       videotestsrc pattern=21 kt=8 ! selector.sink_0 \
-        #                       videotestsrc pattern=0 ! selector.sink_1 '
-    #     self.launch_string = 'input-selector name="selector" sync-mode=1 sync-streams=false ! rtph265depay ! queue ! nvv4l2decoder ! \
-    # nvvidconv name=converter ! capsfilter name="size" caps="video/x-raw(memory:NVMM), width=(int)4320, height=(int)1920, format=(string)I420" ! \
-    # nvv4l2h265enc control-rate=1 ratecontrol-enable=true name="encoder" ! video/x-h265, stream-format=(string)byte-stream ! h265parse ! \
-    # rtph265pay config-interval=1 name=pay0 pt=96 \
-    # rtspsrc location="rtsp://admin:L48yr1n771@192.168.128.190:554/Streaming/Channels/101" name=source0 latency=100 ! queue2 ! selector.sink_0 \
-    # rtspsrc location="rtsp://admin:L48yr1n771@192.168.128.190:554/Streaming/Channels/101" name=source1 latency=100 ! queue2 ! selector.sink_1'
-        self.launch_string = f'input-selector name="selector" ! capsfilter caps="video/x-raw, height=600, width=800, framerate=30/1" ! \
-                                          nvvidconv name=converter ! capsfilter name="size" caps="video/x-raw(memory:NVMM), width=(int)800, height=(int)800, format=(string)I420" !\
-                                          nvv4l2h265enc name="encoder" control-rate=1 ratecontrol-enable=true bitrate=200000 ! h265parse ! \
-                                          avdec_h265 ! videoconvert ! xvimagesink name=output \
-                                          videotestsrc pattern=21 kt=8 is-live=true ! selector.sink_0 \
-                                          videotestsrc pattern=0 is-live=true ! selector.sink_1'
+
+        # Gstreamer pipeline in gst-launch format
+        # Software encoder and test sources
+        self.launch_string = 'input-selector name="selector" sync-mode=1 ! timeoverlay ! \
+                              videoconvert ! video/x-raw,format=I420  \
+                             ! x264enc name=encoder speed-preset=ultrafast tune=zerolatency  \
+                             ! rtph264pay config-interval=1 name=pay0 pt=96 \
+                              videotestsrc pattern=21 kt=8 ! selector.sink_0 \
+                              videotestsrc pattern=0 ! selector.sink_1 '
+        # NVidia Jetson with cameras
+        #self.launch_string = 'input-selector name="selector" sync-mode=1 sync-streams=false ! rtph265depay ! queue ! nvv4l2decoder ! \
+        # nvvidconv name=converter ! capsfilter name="size" caps="video/x-raw(memory:NVMM), width=(int)4320, height=(int)1920, format=(string)I420" ! \
+        # nvv4l2h265enc control-rate=1 ratecontrol-enable=true name="encoder" ! video/x-h265, stream-format=(string)byte-stream ! h265parse ! \
+        # rtph265pay config-interval=1 name=pay0 pt=96 \
+        # rtspsrc location="rtsp://admin:L48yr1n771@192.168.128.190:554/Streaming/Channels/101" name=source0 latency=100 ! queue2 ! selector.sink_0 \
+        # rtspsrc location="rtsp://admin:L48yr1n771@192.168.128.190:554/Streaming/Channels/101" name=source1 latency=100 ! queue2 ! selector.sink_1'
+        # NVidia Jetson with test sources
+        # self.launch_string = f'input-selector name="selector" ! capsfilter caps="video/x-raw, height=600, width=800, framerate=30/1" ! \
+        #                                   nvvidconv name=converter ! capsfilter name="size" caps="video/x-raw(memory:NVMM), width=(int)800, height=(int)800, format=(string)I420" !\
+        #                                   nvv4l2h265enc name="encoder" control-rate=1 ratecontrol-enable=true bitrate=200000 ! h265parse ! \
+        #                                   avdec_h265 ! videoconvert ! xvimagesink name=output \
+        #                                   videotestsrc pattern=21 kt=8 is-live=true ! selector.sink_0 \
+        #                                   videotestsrc pattern=0 is-live=true ! selector.sink_1'
+        
+        #Share pipeline between clients
         self.set_shared(True)
         self.own_media = None
 
@@ -49,6 +56,7 @@ class SensorFactory(GstRtspServer.RTSPMediaFactory):
     def do_configure(self, rtsp_media):
         self.media = rtsp_media
         self.number_frames = 0
+        # Get selector and encoder elements
         self.selector = rtsp_media.get_element().get_child_by_name('selector')
         self.encoder = rtsp_media.get_element().get_child_by_name('encoder')
         print(self.is_shared())
@@ -56,27 +64,30 @@ class SensorFactory(GstRtspServer.RTSPMediaFactory):
         rtsp_media.set_shared(True)
         # rtsp_media.set_reusable(True)
 
+    #Switch between inputs on the 'inputselector' element named 'selector'
     def switch_to_input(self, input):
-        if self.selector != None:
-            num_pads = self.selector.get_property('n-pads')
+        if self.selector != None: #Selector has been defined for
+            num_pads = self.selector.get_property('n-pads') #get input pads for selector element
             print(f'Numer of inputs: {num_pads}')
             if (input < 0) or (input > (num_pads-1)):
                 print('Out of bounds input selected')
                 return False
-            active_pad = self.selector.get_property('active-pad')
+            
+            active_pad = self.selector.get_property('active-pad') #get currently active input pad
             if active_pad:
                 active_pad_name = active_pad.get_name()
                 print(active_pad_name)
                 if active_pad_name != f'sink_{input}':
                     padname = f'sink_{input}'
                 else:
-                    return True
-                newpad = self.selector.get_static_pad(padname)
+                    return True # newly selected pad is already active
+                newpad = self.selector.get_static_pad(padname) #get pad for input you are switching to
                 print(padname)
                 print(newpad)
-                self.selector.set_property('active-pad', newpad)
+                self.selector.set_property('active-pad', newpad) # set active pad to the newly selected input
                 print('set pad')
                 return True
+            
     def change_bitrate(self, bitrate):
         if self.encoder != None:
             elem = self.media.get_element()
@@ -89,28 +100,34 @@ class SensorFactory(GstRtspServer.RTSPMediaFactory):
 class GstServer(GstRtspServer.RTSPServer):
     def __init__(self, **properties):
         super(GstServer, self).__init__(**properties)
+
         self.factory = SensorFactory()
         self.factory.set_shared(True)
+
         self.factory.latency = 100
+
         self.set_service(str(opt.port))
+
         self.get_mount_points().add_factory(opt.stream_uri, self.factory)
 
-        # Create permissions for authenticated users
-        permissions = GstRtspServer.RTSPPermissions.new()
-        permissions.add_role('admin')
-        permissions.add_permission_for_role('admin', GstRtspServer.RTSP_PERM_MEDIA_FACTORY_ACCESS, True)
-        permissions.add_permission_for_role('admin', GstRtspServer.RTSP_PERM_MEDIA_FACTORY_CONSTRUCT, True)
-        self.factory.set_permissions(permissions)
+        #User roles and permissions
 
-        # Create user authentication
-        auth = GstRtspServer.RTSPAuth.new()
-        anontoken =  GstRtspServer.RTSPToken.new()
-        anontoken.set_string(GstRtspServer.RTSP_TOKEN_MEDIA_FACTORY_ROLE, "anonymous")
-        token =  GstRtspServer.RTSPToken.new()
-        token.set_string(GstRtspServer.RTSP_TOKEN_MEDIA_FACTORY_ROLE, "admin")
-        basic = auth.make_basic('admin', 'admin')
-        auth.add_basic(basic, token)
-        self.set_auth(auth)
+        # # Create permissions for authenticated users
+        # permissions = GstRtspServer.RTSPPermissions.new()
+        # permissions.add_role('admin')
+        # permissions.add_permission_for_role('admin', GstRtspServer.RTSP_PERM_MEDIA_FACTORY_ACCESS, True)
+        # permissions.add_permission_for_role('admin', GstRtspServer.RTSP_PERM_MEDIA_FACTORY_CONSTRUCT, True)
+        # self.factory.set_permissions(permissions)
+
+        # # Create user authentication
+        # auth = GstRtspServer.RTSPAuth.new()
+        # anontoken =  GstRtspServer.RTSPToken.new()
+        # anontoken.set_string(GstRtspServer.RTSP_TOKEN_MEDIA_FACTORY_ROLE, "anonymous")
+        # token =  GstRtspServer.RTSPToken.new()
+        # token.set_string(GstRtspServer.RTSP_TOKEN_MEDIA_FACTORY_ROLE, "admin")
+        # basic = auth.make_basic('admin', 'admin')
+        # auth.add_basic(basic, token)
+        # self.set_auth(auth)
         
         # Attach server to default GLib MainContext
         self.attach(None)
@@ -140,17 +157,16 @@ class ServerNode(Node):
     def timer_callback(self):
         print('node spun')
 
+    # Parameter change callback, Check given values and pass to function that sets GStreamer pipeline state
     def parameter_callback(self, params):
         success = False
         for param in params:
             if param.name == self.port_param_name:
                 print('Cannot change port in flight')
             if param.name == self.input_selector_param_name:
-                self.server.factory.switch_to_input(param.value)
-                success = True
+                success = self.server.factory.switch_to_input(param.value)
             if param.name == self.bitrate_pararm_name:
-                self.server.factory.change_bitrate(param.value)
-                success=True
+                success = self.server.factory.change_bitrate(param.value)
             else:
                 pass
         return SetParametersResult(successful=success)

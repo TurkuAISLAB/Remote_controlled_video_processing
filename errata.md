@@ -1,0 +1,1 @@
+libgst needs `export LD_PRELOAD=/usr/lib/x86_64-linux-gnu/libunwind.so.8` to work with rclpy on Ubuntu 22.04

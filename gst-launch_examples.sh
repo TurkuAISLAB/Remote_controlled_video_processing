@@ -42,3 +42,12 @@ gst-launch-1.0 \
     rtph265pay config-interval=1 name=pay0 pt=96 ! udpsink host=192.168.128.236 port=8001 sync=false \
     rtspsrc location="rtsp://admin:L48yr1n771@192.168.128.190:554/Streaming/Channels/101" latency=100 ! queue2 ! selector.sink_0
 
+gst-launch-1.0 filesrc location="bbb-3840x2160-cfg02.mkv" ! matroskademux ! h265parse ! vaapih265dec ! vaapisink
+
+gst-launch-1.0 filesrc location="/home/peter/Videos/bbb-3840x2160-cfg02.mkv" ! matroskademux ! h265parse ! vaapih265dec \
+    ! vaapipostproc ! vaapih265enc name="encoder" ! vaapih265dec ! vaapisink name=output \
+
+gst-launch-1.0 input-selector name="selector" ! vaapih265dec ! vaapipostproc ! vaapih265enc name="encoder" ! \
+        vaapih265dec ! vaapisink name=output \
+        filesrc location="/home/peter/Videos/bbb-3840x2160-cfg02.mkv" ! matroskademux ! h265parse ! selector.sink_0 \
+        filesrc location="/home/peter/Videos/bbb-3840x2160-cfg02.mkv" ! matroskademux ! h265parse ! selector.sink_1
