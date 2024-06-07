@@ -28,6 +28,7 @@ class SensorFactory(GstRtspServer.RTSPMediaFactory):
                              ! rtph264pay config-interval=1 name=pay0 pt=96 \
                               videotestsrc pattern=21 kt=8 ! selector.sink_0 \
                               videotestsrc pattern=0 ! selector.sink_1 '
+
         # NVidia Jetson with cameras
         #self.launch_string = 'input-selector name="selector" sync-mode=1 sync-streams=false ! rtph265depay ! queue ! nvv4l2decoder ! \
         # nvvidconv name=converter ! capsfilter name="size" caps="video/x-raw(memory:NVMM), width=(int)4320, height=(int)1920, format=(string)I420" ! \
