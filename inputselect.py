@@ -22,22 +22,21 @@ class Player(Gtk.Window):
         self.state = Gst.State.NULL
         self.duration = Gst.CLOCK_TIME_NONE
         # self.pipeline = Gst.parse_launch('uridecodebin name=source ! videoconvert ! gtksink name=output')
-        self.pipeline = Gst.parse_launch(f'input-selector name="selector" ! capsfilter name="size" caps="video/x-raw, height=900, width=1100, framerate=30/1" !  timeoverlay  ! vaapipostproc ! \
-                                          vaapih265enc name="encoder" bitrate={self.bitrate} rate-control="cbr" ! h265parse ! \
-                                          vaapih265dec ! vaapisink name=output \
-                                          videotestsrc pattern=21 kt=8 is-live=true ! selector.sink_0 \
-                                          videotestsrc pattern=0 is-live=true ! selector.sink_1')
+        # self.pipeline = Gst.parse_launch(f'input-selector name="selector" ! capsfilter name="size" caps="video/x-raw, height=900, width=1100, framerate=30/1" !  timeoverlay  ! vaapipostproc ! \
+        #                                   vaapih265enc name="encoder" bitrate={self.bitrate} rate-control="cbr" ! h265parse ! \
+        #                                   vaapih265dec ! vaapisink name=output \
+        #                                   videotestsrc pattern=21 kt=8 is-live=true ! selector.sink_0 \
+        #                                   videotestsrc pattern=0 is-live=true ! selector.sink_1')
         # self.pipeline = Gst.parse_launch(f'input-selector name="selector" ! vaapipostproc name="size" ! \
         #                                  vaapih265enc name="encoder" bitrate={self.bitrate} rate-control="cbr" ! \
         #                                  vaapih265dec ! vaapisink name=output \
         #                                  filesrc location="/home/peter/Videos/sintel-4096x1744-cfg02.mkv" ! matroskademux ! h265parse ! vaapih265dec ! selector.sink_0 \
         #                                  filesrc location="/home/peter/Videos/bbb-3840x2160-cfg02.mkv" ! matroskademux ! h265parse ! vaapih265dec ! selector.sink_1')
-        # self.pipeline = Gst.parse_launch(f'input-selector name="selector" ! vaapih265dec ! vaapipostproc name="size" ! \
-        #                                  vaapih265enc name="encoder" bitrate={self.bitrate} rate-control="cbr" ! \
-        #                                  capsfilter name="size" caps="video/x-raw(memory:NVMM), width=(int)800, height=(int)800, format=(string)I420" ! \
-        #                                  vaapih265dec ! vaapisink name=output \
-        #                                  filesrc location="/home/peter/Videos/sintel-4096x1744-cfg02.mkv" ! matroskademux ! h265parse ! selector.sink_0 \
-        #                                  filesrc location="/home/peter/Videos/bbb-3840x2160-cfg02.mkv" ! matroskademux ! h265parse !  selector.sink_1')
+        self.pipeline = Gst.parse_launch(f'input-selector name="selector" ! vaapih265dec ! vaapipostproc name="size" ! \
+                                         vaapih265enc name="encoder" bitrate={self.bitrate} rate-control="cbr" ! \
+                                         vaapih265dec ! vaapisink name=output \
+                                         filesrc location="/home/peter/Videos/sintel-4096x1744-cfg02.mkv" ! matroskademux ! h265parse ! selector.sink_0 \
+                                         filesrc location="/home/peter/Videos/bbb-3840x2160-cfg02.mkv" ! matroskademux ! h265parse !  selector.sink_1')
         # self.pipeline = Gst.parse_launch(f'input-selector name="selector" ! capsfilter caps="video/x-raw, height=600, width=800, framerate=30/1" ! \
         #                                   nvvidconv name=converter ! capsfilter name="size" caps="video/x-raw(memory:NVMM), width=(int)800, height=(int)800, format=(string)I420" !\
         #                                   nvv4l2h265enc name="encoder" control-rate=1 ratecontrol-enable=true bitrate={self.bitrate} ! h265parse ! \
