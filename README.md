@@ -19,7 +19,9 @@ The bitrate parameter is an integer representing the target bitrate of the encod
 
 An incompatibility exists between Gstreamer and the ROS2 Python runtime library due to an erroneous symbol export of `libunwind` symbols, causing a segfault on startup. By setting the environment variable `LD_PRELOAD=/usr/lib/x86_64-linux-gnu/libunwind.so.8` this error is eliminated and only needs to be done for the process that launches the ROS2 node. This is potentially fixed on Ubuntu 24.04.
 
-Current version uses software encoder (x264) and Gstreamer test video sources (VA-API was somewhat unreliable) but commented out pipeline using Nvidia Jetson based modules is also present in code. Comment out existing pipeline and uncomment pipeline that inculdes `nvv4l2h265dec`, `nvv4l2h265enc` and `nvvidconv` elements.
+Current version uses software encoder (x264) and Gstreamer test video sources but commented out pipeline using Nvidia Jetson based modules is also present in code, which should work. Comment out existing pipeline and uncomment pipeline that inculdes `nvv4l2h265dec`, `nvv4l2h265enc` and `nvvidconv` elements.
+
+AMD VA-API pipeline fails in media construction stage on RTSP server but works in standalone inputselector.py. If multiple video clients are not needed the entire RTSP server can be skipped and the pipeline can use raw `udpsink` and `udpsrc` elements for transmission between the vessel and ROC. Example configurations exist with comments in the `gst-launch_examples.sh` file.
 
 ## inputselector.py
 
